@@ -1,0 +1,5 @@
+ixrt_tmp_path: iluvatar_tmp/resnet50-fp16.engine
+has_dynamic_axis: false
+repeat: 1
+image_size: 224
+batch_size: 128
