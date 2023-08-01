@@ -16,13 +16,12 @@ def cal_perf(config, dataloader_len, duration, core_time, str_prefix):
 
 
 def model_forward(model, dataloader, evaluator, config):
+    if config.no_validation:
+        return None, None, None
     if config.fp16:
         model.half()
-
     start = time.time()
-
     core_time = 0.0
-
     acc = []
 
     for times in range(config.repeat):
@@ -44,11 +43,11 @@ def model_forward(model, dataloader, evaluator, config):
                 y = y.cuda()
                 pred = model(x)
                 torch_sync(config)
+                core_time += time.time() - core_time_start
 
                 top1 = evaluator(pred, y)
 
                 all_top1.extend(top1.cpu())
-            core_time += time.time() - core_time_start
 
         acc.append(np.mean(all_top1))
 
@@ -62,12 +61,10 @@ def model_forward(model, dataloader, evaluator, config):
         float(np.mean(acc)), 3)
 
 
-def engine_forward(toolkits, dataloader, evaluator, config):
-    (engine, allocate_buffers, inference) = toolkits
-    outputs = allocate_buffers(engine)
+def engine_forward(model, dataloader, evaluator, config):
     start = time.time()
     core_time = 0.0
-
+    foo_time = 0.0
     acc = []
 
     for times in range(config.repeat):
@@ -78,32 +75,33 @@ def engine_forward(toolkits, dataloader, evaluator, config):
         for step, (x, y) in enumerate(dataloader):
             torch_sync(config)
             core_time_start = time.time()
+
             if step % config.log_freq == 0:
                 logger.debug("Step: " + str(step) + " / " +
                              str(len(dataloader)))
-            inputs = torch.tensor(x.numpy(), dtype=torch.float32).cuda()
-            ixrt_outputs = inference(engine,
-                                    inputs=inputs,
-                                    outputs=outputs)
 
-            ixrt_outputs = ixrt_outputs[0]
-            name, pred, shape = ixrt_outputs
+            with torch.no_grad():
 
-            pred = pred.cpu().float()
-            torch_sync(config)
-            core_time += time.time() - core_time_start
+                outputs = model(torch.tensor(x.numpy(), dtype=torch.float32).cuda())
+                ixrt_outputs = outputs[0][0]
+                name, pred, shape = ixrt_outputs
+                pred = pred.cpu().float()
+                foo_time += outputs[1]
+                pred = pred.cpu().float()
+                torch_sync(config)
+                core_time += time.time() - core_time_start
 
-            top1 = evaluator(pred, y)
+                top1 = evaluator(pred, y)
 
-            all_top1.extend(top1.cpu())
+                all_top1.extend(top1.cpu())
 
         acc.append(np.mean(all_top1))
 
     logger.info("Top1 Acc: " + str(acc))
 
-    duration = time.time() - start
+    duration = time.time() - start - foo_time
     model_forward_perf, model_forward_core_perf = cal_perf(
-        config, len(dataloader), duration, core_time, "Inference")
+        config, len(dataloader), duration, core_time - foo_time, "Inference")
 
     return model_forward_perf, model_forward_core_perf, round(
         float(np.mean(acc)), 3)
