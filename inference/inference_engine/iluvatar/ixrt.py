@@ -128,9 +128,9 @@ class InferModel:
         self.engine.BindIOBuffers(self.outputs)
         self.engine.LoadInput(input_io_buffers)
 
-        torch.cuda.synchronize()
+        # torch.cuda.synchronize()
         self.engine.Execute()
-        torch.cuda.synchronize()
+        # torch.cuda.synchronize()
 
         gpu_io_buffers = []
         for buffer in self.outputs:

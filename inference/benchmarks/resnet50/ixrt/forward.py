@@ -30,7 +30,7 @@ def model_forward(model, dataloader, evaluator, config):
 
         all_top1 = []
         for step, (x, y) in enumerate(dataloader):
-            torch_sync(config)
+            torch.cuda.synchronize()
             core_time_start = time.time()
 
             if step % config.log_freq == 0:
@@ -42,7 +42,7 @@ def model_forward(model, dataloader, evaluator, config):
                 x = x.cuda()
                 y = y.cuda()
                 pred = model(x)
-                torch_sync(config)
+                torch.cuda.synchronize()
                 core_time += time.time() - core_time_start
 
                 top1 = evaluator(pred, y)
@@ -73,7 +73,7 @@ def engine_forward(model, dataloader, evaluator, config):
 
         all_top1 = []
         for step, (x, y) in enumerate(dataloader):
-            torch_sync(config)
+            torch.cuda.synchronize()
             core_time_start = time.time()
 
             if step % config.log_freq == 0:
@@ -87,8 +87,8 @@ def engine_forward(model, dataloader, evaluator, config):
                 name, pred, shape = ixrt_outputs
                 pred = pred.cpu().float()
                 foo_time += outputs[1]
-                pred = pred.cpu().float()
-                torch_sync(config)
+                pred = pred.float()
+                torch.cuda.synchronize()
                 core_time += time.time() - core_time_start
 
                 top1 = evaluator(pred, y)
