@@ -57,3 +57,5 @@ ENV LD_LIBRARY_PATH="/usr/local/corex/lib:${LD_LIBRARY_PATH}"
 ENV PATH="/usr/local/corex/bin:${PATH}"
 ENV NVCC_ARGUMENTS="-U__CUDA_NO_HALF_OPERATORS__ -U__CUDA_NO_HALF_CONVERSIONS__ -ftemplate-depth=1024"
 
+RUN pip install loguru
+RUN pip install pyyaml
